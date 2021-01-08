@@ -12,7 +12,7 @@ library(lsa)
 extendedstopwords <- c("a", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaa", "aaaaaaaaaa", "about", "above", "across", "after", "again", "against", "all", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "an", "and", "another", "any", "anybody", "anyone", "anything", "anywhere", "are", "area", "areas", "aren't", "around", "as", "ask", "asked", "asking", "asks", "at", "away", "b", "back", "backed", "backing", "backs", "be", "became", "because", "become", "becomes", "been", "before", "began", "behind", "being", "beings", "below", "best", "better", "between", "big", "both", "but", "by", "c", "came", "can", "cannot", "can't", "case", "cases", "certain", "certainly", "clear", "clearly", "come", "could", "couldn't", "d", "did", "didn't", "differ", "different", "differently", "do", "does", "doesn't", "doing", "done", "don't", "down", "downed", "downing", "downs", "during", "e", "each", "early", "either", "end", "ended", "ending", "ends", "enough", "even", "evenly", "ever", "every", "everybody", "everyone", "everything", "everywhere", "f", "face", "faces", "fact", "facts", "far", "felt", "few", "find", "finds", "first", "for", "four", "from", "full", "fully", "further", "furthered", "furthering", "furthers", "g", "gave", "general", "generally", "get", "gets", "give", "given", "gives", "go", "going", "good", "goods", "got", "great", "greater", "greatest", "group", "grouped", "grouping", "groups", "h", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "her", "here", "here's", "hers", "herself", "he's", "high", "higher", "highest", "him", "himself", "his", "how", "however", "how's", "i", "i'd", "if", "i'll", "i'm", "important", "in", "interest", "interested", "interesting", "interests", "into", "is", "isn't", "it", "its", "it's", "itself", "i've", "j", "just", "k", "keep", "keeps", "kind", "knew", "know", "known", "knows", "l", "large", "largely", "last", "later", "latest", "least", "less", "let", "lets", "let's", "like", "likely", "long", "longer", "longest", "m", "made", "make", "making", "man", "many", "may", "me", "member", "members", "men", "might", "more", "most", "mostly", "mr", "mrs", "much", "must", "mustn't", "my", "myself", "n", "necessary", "need", "needed", "needing", "needs", "never", "new", "newer", "newest", "next", "no", "nobody", "non", "noone", "nor", "not", "nothing", "now", "nowhere", "number", "numbers", "o", "of", "off", "often", "old", "older", "oldest", "on", "once", "one", "only", "open", "opened", "opening", "opens", "or", "order", "ordered", "ordering", "orders", "other", "others", "ought", "our", "ours", "ourselves", "out", "over", "own", "p", "part", "parted", "parting", "parts", "per", "perhaps", "place", "places", "point", "pointed", "pointing", "points", "possible", "present", "presented", "presenting", "presents", "problem", "problems", "put", "puts", "q", "quite", "r", "rather", "really", "right", "room", "rooms", "s", "said", "same", "saw", "say", "says", "second", "seconds", "see", "seem", "seemed", "seeming", "seems", "sees", "several", "shall", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "show", "showed", "showing", "shows", "side", "sides", "since", "small", "smaller", "smallest", "so", "some", "somebody", "someone", "something", "somewhere", "state", "states", "still", "such", "sure", "t", "take", "taken", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "therefore", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "thing", "things", "think", "thinks", "this", "those", "though", "thought", "thoughts", "three", "through", "thus", "to", "today", "together", "too", "took", "toward", "turn", "turned", "turning", "turns", "two", "u", "under", "until", "up", "upon", "us", "use", "used", "uses", "v", "very", "w", "want", "wanted", "wanting", "wants", "was", "wasn't", "way", "ways", "we", "we'd", "well", "we'll", "wells", "went", "were", "we're", "weren't", "we've", "what", "what's", "when", "when's", "where", "where's", "whether", "which", "while", "who", "whole", "whom", "who's", "whose", "why", "why's", "will", "with", "within", "without", "won't", "work", "worked", "working", "works", "would", "wouldn't", "x", "y", "year", "years", "yes", "yet", "you", "you'd", "you'll", "young", "younger", "youngest", "your", "you're", "yours", "yourself", "yourselves", "you've", "z")
 extendedstopwords <- c(extendedstopwords, gsub("'", "", grep("'", extendedstopwords, value = T)))
 #Specify where to save all generated data (intermediate)
-data.prefix <- "../saved_data2/"
+data.prefix <- "../saved_data3/"
 
 # Get all data in the passed folder
 # All data returned as DF
@@ -68,24 +68,22 @@ get_data <- function(path, type, project = NULL) {
 # object:  The text list with added column containing assigned cluster number
 #          The cluster silhouettes
 cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F, 
-                    method = "ward.D2", test = NULL, ev = "sil", project_name = NULL, LDA_model = NULL)
+                    method = "ward.D2", test = NULL, ev = "sil", project_name = NULL, lda_model = NULL)
 {
     if (FE == "TFIDF")
-        data_vsm <- vsm(as.matrix(data$text))
+        data_vsm <- vsm(as.matrix(data$text))$dtm
     else if (FE == "LDA"){
-            if ( is.null(LDA_model) ){
-                data_vsm <- lda(as.matrix(data$text), as.matrix(test$text))
-            }
-            else {
-               #TODO: Using a ready LDA Model to extract the VSM. 
-            }
-
+        if(is.null(lda_model))
+            data_vsm <- lda(as.matrix(data$text), as.matrix(test$text))
+        else {
+           data_vsm <- posterior(lda_model)$topics
+        }
     }
 
-    dataset_size <- dim(data_vsm$dtm)[1]
-    vocaulary_size <- dim(data_vsm$dtm)[2]
+    dataset_size <- dim(data_vsm)[1]
+    vocaulary_size <- dim(data_vsm)[2]
     if (verbose) {
-        cat("Corpus Dimensions: ", dim(data_vsm$dtm), "\n")
+        cat("Corpus Dimensions: ", dim(data_vsm), "\n")
     }
     #If distance matrix was not passed, calculate distance (using cosine)
     #This is a slow step, if distance to be calculated more than once,
@@ -94,7 +92,7 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
         if (verbose)
             cat("Calculating distance matrix..", "\n")
         start.time <- Sys.time()
-        distance <- as.dist(skmeans_xdist(data_vsm$dtm))
+        distance <- as.dist(skmeans_xdist(data_vsm))
         # cat(summary(distance), "\n")
         end.time <- Sys.time()
         time.taken <- end.time - start.time
@@ -218,60 +216,66 @@ vsm <- function(data, weighting = weightTfIdf, verbose = T) {
 # K is number of topics (if known), leave null to calculate the K that produces 
 # the least perplexity.
 # if K is null, need to send test data as well.
-lda <- function(data, test, k = NULL) {
-    data <- vsm(data, weighting = weightTf)
-    test <- vsm(test, weighting = weightTf)
-    if (is.null(k)) {
-        k_res <- find_best_k(data$dtm, test$dtm)
-        cat("Best K: ", k_res[1,1], " prodcuced perplexity: ", k_res[1,2], "\n")
-        k <- k_res[1,1]
+# Otherwise, just send a pre-existing lda_model (no need for data, test, k)
+lda <- function(data, test, k = NULL, lda_model = NULL) {
+    if (is.null(lda_model)){
+        data <- vsm(data, weighting = weightTf)
+        test <- vsm(test, weighting = weightTf)
+        if (is.null(k)) {
+            k_res <- find_best_k(data$dtm, test$dtm)
+            cat("Best K: ", k_res[1,1], " prodcuced perplexity: ", k_res[1,2], "\n")
+            k <- k_res[1,1]
+        }
+
+        start.time <- Sys.time()
+        lda_model <- LDA(data$dtm, k, method = "Gibbs",
+                        control = list(alpha = 1 / k,
+                        delta = 0.1,
+                        burnin = 50, iter = 500,
+                        keep = 50, verbose = 100))
+        end.time <- Sys.time()
+        time.taken <- end.time - start.time
+        time.taken
+        cat("Time taken to generate final LDA Model: ", time.taken, "\n")
+        save(lda_model, file = paste(data.prefix, "lda_", k, ".rda", sep = ""))
+        p <- perplexity(lda_model, test$dtm)
+        cat("The perplexity of this model is ", p, "\n")
     }
 
-    start.time <- Sys.time()
-    lda_model <- LDA(data$dtm, k, method = "Gibbs",
-                    control = list(alpha = 1 / k,
-                    delta = 0.1,
-                    burnin = 50, iter = 500,
-                    keep = 50, verbose = 100))
-    end.time <- Sys.time()
-    time.taken <- end.time - start.time
-    time.taken
-    cat("Time taken to generate final LDA Model: ", time.taken, "\n")
-    save(lda_model, file = paste(data.prefix, "lda_", k, ".rda", sep = ""))
-    p <- perplexity(lda_model, test$dtm)
-    cat("The perplexity of this model is ", p, "\n")
-
     #Extract the topics:
-    d_g <- topics(lda_model, 4, 0.1)
+    #d_g <- topics(lda_model, 4, 0.1)
+    
 
     #Now build the final DTM for clustering:
-    dtm <- create_matrix(d_g,
-                     stemWords = FALSE,
-                     removeStopwords = FALSE,
-                     minWordLength = 1,
-                     removePunctuation = TRUE,
-                     weighting = tm::weightTfIdf
-                     )
-    dtmm <- as.matrix(dtm)
-    cat("Corpus Dimensions, before cleaning: ", dim(dtm), "\n")
-    # exclude topics that occur less than 2 times
-    idx <- colSums(dtmm) > 2
-    dtm <- dtm[, idx]
+    # dtm <- create_matrix(d_g,
+    #                  stemWords = FALSE,
+    #                  removeStopwords = FALSE,
+    #                  minWordLength = 1,
+    #                  removePunctuation = TRUE,
+    #                  weighting = tm::weightTfIdf
+    #                  )
+    # dtmm <- as.matrix(dtm)
+    # cat("Corpus Dimensions, before cleaning: ", dim(dtm), "\n")
+    # # exclude topics that occur less than 2 times
+    # idx <- colSums(dtmm) > 2
+    # dtm <- dtm[, idx]
 
-    # throw out any empty documents
-    idx <- rowSums(dtmm) > 0
-    dtm <- dtm[idx, ]
-    cat("Corpus Dimensions, after cleaning: ", dim(dtm), "\n")
+    # # throw out any empty documents
+    # idx <- rowSums(dtmm) > 0
+    # dtm <- dtm[idx, ]
+    # cat("Corpus Dimensions, after cleaning: ", dim(dtm), "\n")
 
-    termFreqs <- colSums(dtmm)
-    stopifnot(!any(termFreqs == 0))
-    docLens <- rowSums(dtmm)
-    stopifnot(!any(docLens == 0))
+    # termFreqs <- colSums(dtmm)
+    # stopifnot(!any(termFreqs == 0))
+    # docLens <- rowSums(dtmm)
+    # stopifnot(!any(docLens == 0))
 
-    return(list(data = data, dtm = dtm, dtmm = dtmm,
-                term_freq = termFreqs, doc_lengths = docLens))
+    # return(list(data = data, dtm = dtm, dtmm = dtmm,
+    #             term_freq = termFreqs, doc_lengths = docLens))
 
-    # return(dtm)
+    dtm <- posterior(lda_model)$topics
+
+    return(dtm)
 
 }
 
@@ -322,7 +326,8 @@ setClass(Class = "Solution",
 # type : whether this is a validation step or a test step. 
 # Now only validates based on SP. 
 # ev is evaluation measurment. Could be "MAE" or "MdAE"
-validate <- function(data, project_name, type="valid", FE = "TFIDF"){
+# if the FE method is lda, need to pass an lda model
+validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_model = NULL){
     #Find statistics per cluster:
     means <- aggregate(list(sp = data$storypoint, effort = data$effort.time, resolution = data$resolution.time, inprogress = data$in.progress.time),
         list(label = data$label),
@@ -336,24 +341,28 @@ validate <- function(data, project_name, type="valid", FE = "TFIDF"){
     test <- get_data("../SPDataset-PorruFilter", type, project_name)
     test$text <- paste(test$title, test$description, sep = " ")
 
-    #calculate dtm for both
-    #Note: need to recalculate DTM so vocabulary would include
-    #both sets.
-    training_text <- as.matrix(data$text)
-    testing_text <- as.matrix(test$text)
-
-    train_size <- dim(training_text)[1]
-    test_size <- dim(testing_text)[1]
-
-    combined <- rbind(training_text, testing_text)
-    stopifnot(dim(combined)[1] == train_size + test_size)
-
     if (FE == "TFIDF") {
+        #Note: need to recalculate DTM so vocabulary would include
+        #both sets.
+        training_text <- as.matrix(data$text)
+        testing_text <- as.matrix(test$text)
+
+        train_size <- dim(training_text)[1]
+        test_size <- dim(testing_text)[1]
+
+        combined <- rbind(training_text, testing_text)
+        stopifnot(dim(combined)[1] == train_size + test_size)
         dtm <- vsm(combined, verbose = F)$dtm
+
+        #Now separate the two dtms:
+        dtm.train <- dtm[1:train_size, ]
+        dtm.test <- dtm[-(1:train_size),]
     }
-    else 
-        if(FE == "LDA"){
-            #Need to find a way of folding-in new documents to ready LDA model. 
+    else if(FE == "LDA") {
+            #Fitting new data to the lda model
+            dtm.train <- posterior(lda_model)$topics
+            dtm.test <- vsm(testing_text, verbose = F)$dtm
+            dtm.test <- posterior(lda_model, dtm.test)$topics
         }
 
     #To generate word cloud:
@@ -361,9 +370,6 @@ validate <- function(data, project_name, type="valid", FE = "TFIDF"){
     # freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
     # wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
 
-    #Now separate the two dtms:
-    dtm.train <- dtm[1:train_size, ]
-    dtm.test <- dtm[-(1:train_size),]
 
     stopifnot(dtm.train$nrow == train_size)
     stopifnot(dtm.test$nrow == test_size)
