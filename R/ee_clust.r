@@ -406,14 +406,15 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
             )
 
 
-    ae.sp.cluster.median <- abs(results$sp - results$median.cluster.sp)
-    mae <- mean(ae.sp.cluster.median)
-    mdae <- median(ae.sp.cluster.median)
+    # ae.sp.cluster.median <- abs(results$sp - results$median.cluster.sp)
+    # mae <- mean(ae.sp.cluster.median)
+    # mdae <- median(ae.sp.cluster.median)
 
 
     # ae.sp.cluster.mean <- abs(results$sp - results$mean.cluster.sp)
     # mae <- mean(ae.sp.cluster.mean)
     # mdae <- median(ae.sp.cluster.mean)
     
-    return (c(mae, mdae))
+    # return (c(mae, mdae))
+    return(results)
 }
