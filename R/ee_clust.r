@@ -55,6 +55,24 @@ get_data <- function(path, type, project = NULL) {
     return(dataset)
 }
 
+# Given a path to a folder, retrieve a list of unique project names in dataset:
+get_project_names <- function(path){
+    oldwd <- getwd()
+    setwd(path)
+    dataset <- list()
+    for (file in list.files(path)) {
+        project_name <- substr(
+            file,
+            0,
+            unlist(gregexpr("-", file)) - 1
+        )
+
+        dataset <- rbind(dataset, project_name)
+    }
+    setwd(oldwd)
+    return(unique(dataset))
+}
+
 # function to cluster the data
 # Data: array or matrix of issue with all their columns (needed for validation)
 # Distance: Distance matrix (as.dist())
@@ -76,7 +94,9 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
         if(is.null(lda_model))
             data_vsm <- lda(as.matrix(data$text), as.matrix(test$text))
         else {
-           data_vsm <- posterior(lda_model)$topics
+            #dtm <- vsm(as.matrix(data$text), verbose = F, weighting = weightTf)$dtm
+            #data_vsm <- posterior(lda_model, dtm)$topics
+            data_vsm <- posterior(lda_model)$topics
         }
     }
 
@@ -341,14 +361,15 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
     test <- get_data("../SPDataset-PorruFilter", type, project_name)
     test$text <- paste(test$title, test$description, sep = " ")
 
+ 
+    testing_text <- as.matrix(test$text)
+    test_size <- dim(testing_text)[1]
+
     if (FE == "TFIDF") {
         #Note: need to recalculate DTM so vocabulary would include
         #both sets.
         training_text <- as.matrix(data$text)
-        testing_text <- as.matrix(test$text)
-
         train_size <- dim(training_text)[1]
-        test_size <- dim(testing_text)[1]
 
         combined <- rbind(training_text, testing_text)
         stopifnot(dim(combined)[1] == train_size + test_size)
@@ -357,11 +378,14 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
         #Now separate the two dtms:
         dtm.train <- dtm[1:train_size, ]
         dtm.test <- dtm[-(1:train_size),]
+
+        stopifnot(dtm.train$nrow == train_size)
+        stopifnot(dtm.test$nrow == test_size)
     }
-    else if(FE == "LDA") {
-            #Fitting new data to the lda model
+    else if(FE == "LDA") { #Then must pass an LDA Model. 
             dtm.train <- posterior(lda_model)$topics
-            dtm.test <- vsm(testing_text, verbose = F)$dtm
+            #Fitting new data to the lda model
+            dtm.test <- vsm(testing_text, verbose = F, weighting = weightTf)$dtmm
             dtm.test <- posterior(lda_model, dtm.test)$topics
         }
 
@@ -371,8 +395,7 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
     # wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
 
 
-    stopifnot(dtm.train$nrow == train_size)
-    stopifnot(dtm.test$nrow == test_size)
+    
 
     #Calculate the distance between the two:
     distance <- skmeans_xdist(dtm.test, dtm.train)
