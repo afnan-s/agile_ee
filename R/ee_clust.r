@@ -96,7 +96,9 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
         else {
             #dtm <- vsm(as.matrix(data$text), verbose = F, weighting = weightTf)$dtm
             #data_vsm <- posterior(lda_model, dtm)$topics
-            data_vsm <- posterior(lda_model)$topics
+            #data_vsm <- posterior(lda_model)$topics
+            dtm <- vsm(as.matrix(data$text), verbose = F, weighting = weightTf)$dtmm
+            data_vsm <- posterior(lda_model, dtm)$topics
         }
     }
 
@@ -116,7 +118,7 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
         # cat(summary(distance), "\n")
         end.time <- Sys.time()
         time.taken <- end.time - start.time
-        save(distance, file = paste(data.prefix, "distance_", FE, ".rda", sep = ""))
+        save(distance, file = paste(data.prefix, project_name, "_distance_", FE, ".rda", sep = ""))
         if (verbose == T)
             cat("Time taken to calculate distance matrix: ", time.taken, "\n")
     }
@@ -129,7 +131,7 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
     time.taken
     if (verbose == T)
         cat("Time taken to cluster: ", time.taken, "\n")
-    save(dendrogram, file = paste(data.prefix, "dendrogram_", FE, ".rda", sep = ""))
+    save(dendrogram, file = paste(data.prefix, project_name, "_dendrogram_", FE, ".rda", sep = ""))
     # Loop through dendrogram, finding the k that produceds the maximum silhouette
     eval_gran <- data.frame()
     #Define the sequence by which the loop iterates (no need to test at every point)
@@ -147,7 +149,7 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
         # Calculate the evaluative measure:
         sil <- summary(silhouette(current, distance))$avg.width
         data$labels <- current
-        evals <- validate(data = data, project_name = project_name)
+        evals <- validate(data = data, project_name = project_name, FE = FE, lda_model = lda_model)$mae_mdae
 
         # Combine cluster number and cost together, write to df
         eval_gran <- rbind(eval_gran, cbind(i, sil, evals[1], evals[2]))
@@ -361,15 +363,15 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
     test <- get_data("../SPDataset-PorruFilter", type, project_name)
     test$text <- paste(test$title, test$description, sep = " ")
 
- 
     testing_text <- as.matrix(test$text)
     test_size <- dim(testing_text)[1]
+
+    training_text <- as.matrix(data$text)
+    train_size <- dim(training_text)[1]
 
     if (FE == "TFIDF") {
         #Note: need to recalculate DTM so vocabulary would include
         #both sets.
-        training_text <- as.matrix(data$text)
-        train_size <- dim(training_text)[1]
 
         combined <- rbind(training_text, testing_text)
         stopifnot(dim(combined)[1] == train_size + test_size)
@@ -381,13 +383,16 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
 
         stopifnot(dtm.train$nrow == train_size)
         stopifnot(dtm.test$nrow == test_size)
+
     }
-    else if(FE == "LDA") { #Then must pass an LDA Model. 
-            dtm.train <- posterior(lda_model)$topics
+    else if (FE == "LDA") { #Then must pass an LDA Model.
+            dtm.train <- vsm(training_text, verbose = F, weighting = weightTf)$dtmm
+            dtm.train <- posterior(lda_model, dtm.train)$topics
             #Fitting new data to the lda model
             dtm.test <- vsm(testing_text, verbose = F, weighting = weightTf)$dtmm
             dtm.test <- posterior(lda_model, dtm.test)$topics
         }
+
 
     #To generate word cloud:
     # library(wordcloud)
@@ -395,7 +400,6 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
     # wordcloud(rownames(freq), freq[,1], max.words=50, colors=brewer.pal(1, "Dark2"))
 
 
-    
 
     #Calculate the distance between the two:
     distance <- skmeans_xdist(dtm.test, dtm.train)
@@ -429,15 +433,15 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
             )
 
 
-    # ae.sp.cluster.median <- abs(results$sp - results$median.cluster.sp)
-    # mae <- mean(ae.sp.cluster.median)
-    # mdae <- median(ae.sp.cluster.median)
+     ae.sp.cluster.median <- abs(results$sp - results$median.cluster.sp)
+     mae <- mean(ae.sp.cluster.median)
+     mdae <- median(ae.sp.cluster.median)
 
 
-    # ae.sp.cluster.mean <- abs(results$sp - results$mean.cluster.sp)
-    # mae <- mean(ae.sp.cluster.mean)
-    # mdae <- median(ae.sp.cluster.mean)
+    #  ae.sp.cluster.mean <- abs(results$sp - results$mean.cluster.sp)
+    #  mae <- mean(ae.sp.cluster.mean)
+    #  mdae <- median(ae.sp.cluster.mean)
     
     # return (c(mae, mdae))
-    return(results)
+    return(list(results = results, mae_mdae = c(mae, mdae)))
 }
