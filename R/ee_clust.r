@@ -85,27 +85,49 @@ get_project_names <- function(path){
 # Returns:
 # object:  The text list with added column containing assigned cluster number
 #          The cluster silhouettes
-cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F, 
-                    method = "ward.D2", test = NULL, ev = "sil", project_name = NULL, lda_model = NULL)
+cluster_h <- function(data, test, valid, dtm, FE = "TFIDF", distance = NULL, verbose = F, 
+                    method = "ward.D2", ev = "sil", project_name = NULL, lda_model = NULL)
 {
-    if (FE == "TFIDF")
-        data_vsm <- vsm(as.matrix(data$text))$dtm
-    else if (FE == "LDA"){
-        if(is.null(lda_model))
-            data_vsm <- lda(as.matrix(data$text), as.matrix(test$text))
-        else {
-            #dtm <- vsm(as.matrix(data$text), verbose = F, weighting = weightTf)$dtm
-            #data_vsm <- posterior(lda_model, dtm)$topics
-            #data_vsm <- posterior(lda_model)$topics
-            dtm <- vsm(as.matrix(data$text), verbose = F, weighting = weightTf)$dtmm
-            data_vsm <- posterior(lda_model, dtm)$topics
-        }
-    }
+    if(is.null(project_name))
+        project_name <- "All_projects"
 
-    dataset_size <- dim(data_vsm)[1]
-    vocaulary_size <- dim(data_vsm)[2]
+    # if (FE == "TFIDF") {
+    #     #Note: need to recalculate DTM so vocabulary would include
+    #     #both sets.
+
+    #     # combined <- rbind(training_text, testing_text)
+    #     # stopifnot(dim(combined)[1] == train_size + test_size)
+    #     # dtm <- vsm(combined, verbose = F)$dtm
+
+    #     # #Now separate the two dtms:
+    #     # dtm.train <- dtm[1:train_size, ]
+    #     # dtm.test <- dtm[-(1:train_size),]
+
+    #     # stopifnot(dtm.train$nrow == train_size)
+    #     # stopifnot(dtm.test$nrow == test_size)
+    #     dtm <- get_dtm_tfidf(as.matrix(data$text), as.matrix(valid$text))
+
+    # }
+    # else if (FE == "LDA") { #See if passed an LDA Model.
+    #     if (is.null(lda_model)) {
+    #         lda_model <- lda(as.matrix(data$text), as.matrix(valid$text))$lda_model
+    #     }
+
+    #     # dtm.train <- vsm(training_text, verbose = F, weighting = weightTf)$dtmm
+    #     # dtm.train <- posterior(lda_model, dtm.train)$topics
+    #     # #Fitting new data to the lda model
+    #     # dtm.test <- vsm(testing_text, verbose = F, weighting = weightTf)$dtmm
+    #     # dtm.test <- posterior(lda_model, dtm.test)$topics
+    #     dtm <- get_dtm_lda(as.matrix(data$text), as.matrix(valid$text), as.matrix(test$text), lda_model = lda_model)
+    # }
+
+
+
+    dataset_size <- dim(dtm$train)[1]
+    vocabulary_size <- dim(dtm$train)[2]
+    
     if (verbose) {
-        cat("Corpus Dimensions: ", dim(data_vsm), "\n")
+        cat("Corpus Dimensions: ", dim(dtm$train), "\n")
     }
     #If distance matrix was not passed, calculate distance (using cosine)
     #This is a slow step, if distance to be calculated more than once,
@@ -114,11 +136,13 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
         if (verbose)
             cat("Calculating distance matrix..", "\n")
         start.time <- Sys.time()
-        distance <- as.dist(skmeans_xdist(data_vsm))
+        distance <- as.dist(skmeans_xdist(dtm$train))
         # cat(summary(distance), "\n")
         end.time <- Sys.time()
         time.taken <- end.time - start.time
-        save(distance, file = paste(data.prefix, project_name, "_distance_", FE, ".rda", sep = ""))
+        file_name <- paste(data.prefix, project_name, "_distance_", FE, ".rda", sep = "")
+        save(distance, file = file_name)
+        cat("Distance matrix saved to ", file_name, "\n")
         if (verbose == T)
             cat("Time taken to calculate distance matrix: ", time.taken, "\n")
     }
@@ -131,7 +155,9 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
     time.taken
     if (verbose == T)
         cat("Time taken to cluster: ", time.taken, "\n")
-    save(dendrogram, file = paste(data.prefix, project_name, "_dendrogram_", FE, ".rda", sep = ""))
+    file_name <- paste(data.prefix, project_name, "_dendrogram_", FE, ".rda", sep = "")
+    save(dendrogram, file = file_name)
+    cat("Dendrogram saved to ", file_name, "\n")
     # Loop through dendrogram, finding the k that produceds the maximum silhouette
     eval_gran <- data.frame()
     #Define the sequence by which the loop iterates (no need to test at every point)
@@ -149,7 +175,8 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
         # Calculate the evaluative measure:
         sil <- summary(silhouette(current, distance))$avg.width
         data$labels <- current
-        evals <- validate(data = data, project_name = project_name, FE = FE, lda_model = lda_model)$mae_mdae
+        #Call validate (but on validation set not test set)
+        evals <- validate(data = data, test = valid, dtm.train = dtm$train, dtm.test = dtm$valid)$mae_mdae
 
         # Combine cluster number and cost together, write to df
         eval_gran <- rbind(eval_gran, cbind(i, sil, evals[1], evals[2]))
@@ -157,9 +184,12 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
             cat("\rDone loop : ", i)
     }
     names(eval_gran) <- c("granularity", "silhouette", "MAE", "MdAE")
-    save(eval_gran, file = paste(data.prefix, project_name,"_gran_", FE, ".rda", sep = ""))
+    file_name <- paste(data.prefix, project_name,"_gran_", FE, ".rda", sep = "")
+    save(eval_gran, file = file_name)
+    cat("\nGranularity evaluation table is saved to ", file_name, "\n")
     # Plot:
-    pdf(paste(project_name, "_gran_plot_", FE, ".pdf", sep = ""))
+    file_name <- paste(project_name, "_gran_plot_", FE, ".pdf", sep = "")
+    pdf(file_name)
     matplot(eval_gran$granularity, 
             cbind(eval_gran$silhouette, eval_gran$MAE, eval_gran$MdAE), 
             type = c("b"),
@@ -167,20 +197,17 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
             col = 1:4,
             xlab = "Number of Clusters",
             ylab = "Evaluation Metrics: Silhouette, MAE and MdAE",
-            main = paste("Cluster Quality for Project ", project_name)) #plot
+            main = paste("Cluster Quality for ", project_name)) #plot
     legend("right", legend = c("Silhouette", "MAE", "MdAE"), col=1:4, pch=1) 
-    # plot(eval_gran$granularity, eval_gran$MAE, eval_gran$MdAE,
-        # type = "b",
-        # xlab = "Number of Clusters",
-        # ylab = "Evaluation Metrics: Silhouette, MAE and MdAE")
     dev.off()
+    cat("Plot successfully generated to", file_name, "\n")
 
     if (verbose) {
         if(ev == "sil"){
             k <- eval_gran[which.max(eval_gran$silhouette), ]
             cat("\nBest K is ", k$granularity, " Producing ", ev, " of ", k$silhouette, "\n")
         }
-        else if(ev == "MAE") {
+        else if (ev == "MAE") {
            k <- eval_gran[which.min(eval_gran$MAE), ]
            cat("\nBest K is ", k$granularity, " Producing ", ev, " of ", k$MAE, "\n")
         }
@@ -189,7 +216,7 @@ cluster_h <- function(data, FE = "TFIDF", distance = NULL, verbose = F,
             cat("\nBest K is ", k$granularity, " Producing ", ev, " of ", k$MdAE, "\n")
         }
         
-        cat("\nPlot successfully generated.", "\n")
+        
     }
 
     return(cutree(dendrogram, k = k$granularity))
@@ -237,32 +264,32 @@ vsm <- function(data, weighting = weightTfIdf, verbose = T) {
 #Function that builds a vector space out of LDA topics
 # K is number of topics (if known), leave null to calculate the K that produces 
 # the least perplexity.
-# if K is null, need to send test data as well.
-# Otherwise, just send a pre-existing lda_model (no need for data, test, k)
-lda <- function(data, test, k = NULL, lda_model = NULL) {
-    if (is.null(lda_model)){
-        data <- vsm(data, weighting = weightTf)
-        test <- vsm(test, weighting = weightTf)
-        if (is.null(k)) {
-            k_res <- find_best_k(data$dtm, test$dtm)
-            cat("Best K: ", k_res[1,1], " prodcuced perplexity: ", k_res[1,2], "\n")
-            k <- k_res[1,1]
-        }
-
-        start.time <- Sys.time()
-        lda_model <- LDA(data$dtm, k, method = "Gibbs",
-                        control = list(alpha = 1 / k,
-                        delta = 0.1,
-                        burnin = 50, iter = 500,
-                        keep = 50, verbose = 100))
-        end.time <- Sys.time()
-        time.taken <- end.time - start.time
-        time.taken
-        cat("Time taken to generate final LDA Model: ", time.taken, "\n")
-        save(lda_model, file = paste(data.prefix, "lda_", k, ".rda", sep = ""))
-        p <- perplexity(lda_model, test$dtm)
-        cat("The perplexity of this model is ", p, "\n")
+# if K is null, need to send validation data as well.
+lda <- function(data, valid = NULL, k = NULL) {
+    cat("Generating LDA Model..\n")
+    data <- vsm(data, weighting = weightTf)
+    valid <- vsm(valid, weighting = weightTf)
+    if (is.null(k)) {
+        k_res <- find_best_k(data$dtm, valid$dtm)
+        cat("Best K: ", k_res[1,1], " prodcuced perplexity: ", k_res[1,2], "\n")
+        k <- k_res[1,1]
     }
+    start.time <- Sys.time()
+    lda_model <- LDA(data$dtm, k, method = "Gibbs",
+                    control = list(alpha = 1 / k,
+                    delta = 0.1,
+                    burnin = 50, iter = 500, keep = 50, #####TUNE#####
+                    verbose = 100))
+    end.time <- Sys.time()
+    time.taken <- end.time - start.time
+    time.taken
+    cat("Time taken to generate final LDA Model: ", time.taken, "\n")
+    file_name <- paste(data.prefix, "lda_", k, ".rda", sep = "")
+    save(lda_model, file = file_name)
+    cat("Final LDA model saved to ", file_name, "\n")
+    p <- perplexity(lda_model, valid$dtm)
+    cat("The perplexity of this model is ", p, "\n")
+
 
     #Extract the topics:
     #d_g <- topics(lda_model, 4, 0.1)
@@ -295,24 +322,26 @@ lda <- function(data, test, k = NULL, lda_model = NULL) {
     # return(list(data = data, dtm = dtm, dtmm = dtmm,
     #             term_freq = termFreqs, doc_lengths = docLens))
 
-    dtm <- posterior(lda_model)$topics
 
-    return(dtm)
+
+    return(lda_model)
 
 }
 
 find_best_k <- function(training, test) {
     start.time <- Sys.time()
     #ks <- seq(2, 3000, by = 500)
-    ks <- seq(2, 3000, by = 500)
+    ks <- seq(2, 3000, by = 500) #####TUNE#####
     models <- lapply(ks, function(k) LDA(training, k, method = "Gibbs",
                         control = list(alpha = 1/k, delta = 0.1,
-                        burnin = 50, iter = 100,
-                        keep = 50, verbose = 10)))
+                        burnin = 50, iter = 100, keep = 50, #####TUNE#####
+                        verbose = 10)))
     end.time <- Sys.time()
     time.taken <- end.time - start.time
     cat("Time taken to generate LDA models: ", time.taken, "\n")
-    save(models, file = paste(data.prefix, "LDA_models.rda", sep = ""))
+    file_name <- paste(data.prefix, "LDA_models.rda", sep = "")
+    save(models, file = file_name)
+    cat("Generated LDA models saved to ", file_name, "\n")
     perps <- sapply(models, perplexity, test)
     pdf("perplexity_graph.pdf")
     plot(ks, perps, xlab = "Number of topics", ylab = "Perplexity")
@@ -345,11 +374,8 @@ setClass(Class = "Solution",
 
 
 # Data: must have the cluster labels included. 
-# type : whether this is a validation step or a test step. 
 # Now only validates based on SP. 
-# ev is evaluation measurment. Could be "MAE" or "MdAE"
-# if the FE method is lda, need to pass an lda model
-validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_model = NULL){
+validate <- function(data, test, dtm.train, dtm.test){
     #Find statistics per cluster:
     means <- aggregate(list(sp = data$storypoint, effort = data$effort.time, resolution = data$resolution.time, inprogress = data$in.progress.time),
         list(label = data$label),
@@ -358,41 +384,6 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
     medians <- aggregate(list(sp = data$storypoint, effort = data$effort.time, resolution = data$resolution.time, inprogress = data$in.progress.time),
         list(label = data$label),
         median)
-
-    #Now test!
-    test <- get_data("../SPDataset-PorruFilter", type, project_name)
-    test$text <- paste(test$title, test$description, sep = " ")
-
-    testing_text <- as.matrix(test$text)
-    test_size <- dim(testing_text)[1]
-
-    training_text <- as.matrix(data$text)
-    train_size <- dim(training_text)[1]
-
-    if (FE == "TFIDF") {
-        #Note: need to recalculate DTM so vocabulary would include
-        #both sets.
-
-        combined <- rbind(training_text, testing_text)
-        stopifnot(dim(combined)[1] == train_size + test_size)
-        dtm <- vsm(combined, verbose = F)$dtm
-
-        #Now separate the two dtms:
-        dtm.train <- dtm[1:train_size, ]
-        dtm.test <- dtm[-(1:train_size),]
-
-        stopifnot(dtm.train$nrow == train_size)
-        stopifnot(dtm.test$nrow == test_size)
-
-    }
-    else if (FE == "LDA") { #Then must pass an LDA Model.
-            dtm.train <- vsm(training_text, verbose = F, weighting = weightTf)$dtmm
-            dtm.train <- posterior(lda_model, dtm.train)$topics
-            #Fitting new data to the lda model
-            dtm.test <- vsm(testing_text, verbose = F, weighting = weightTf)$dtmm
-            dtm.test <- posterior(lda_model, dtm.test)$topics
-        }
-
 
     #To generate word cloud:
     # library(wordcloud)
@@ -407,7 +398,6 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
     #Now, for each row, find the index of the issue
     #that has the minimum distance value to the current one:
     closest <- apply(distance, 1, which.min)
-    stopifnot(length(closest) == test_size)
     closest.labels <- data$labels[closest]
 
     #Now, construct a dataframe that, for each issue (row)
@@ -444,4 +434,37 @@ validate <- function(data, project_name = NULL, type="valid", FE = "TFIDF", lda_
     
     # return (c(mae, mdae))
     return(list(results = results, mae_mdae = c(mae, mdae)))
+}
+
+get_dtm_lda <- function(training_text, validation_text, testing_text, lda_model) {
+
+    dtm.train <- vsm(training_text, verbose = F, weighting = weightTf)$dtmm
+    dtm.train <- posterior(lda_model, dtm.train)$topics
+    
+    dtm.valid <- vsm(validation_text, verbose = F, weighting = weightTf)$dtmm
+    dtm.valid <- posterior(lda_model, dtm.valid)$topics
+    
+    dtm.test <- vsm(testing_text, verbose = F, weighting = weightTf)$dtmm
+    dtm.test <- posterior(lda_model, dtm.test)$topics
+   
+    return(list(train = dtm.train, valid = dtm.valid, test = dtm.test))
+}
+
+get_dtm_tfidf <- function(training_text, testing_text) {
+
+    #Note: need to recalculate DTM so vocabulary would include
+    #both sets.
+
+    combined <- rbind(training_text, testing_text)
+    stopifnot(dim(combined)[1] == train_size + test_size)
+    dtm <- vsm(combined, verbose = F)$dtm
+
+    #Now separate the two dtms:
+    dtm.train <- dtm[1:train_size, ]
+    dtm.test <- dtm[-(1:train_size),]
+
+    stopifnot(dtm.train$nrow == train_size)
+    stopifnot(dtm.test$nrow == test_size)
+    
+    return(list(train = dtm.train, test = dtm.test))
 }
