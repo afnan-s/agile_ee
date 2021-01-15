@@ -91,37 +91,6 @@ cluster_h <- function(data, test, valid, dtm, FE = "TFIDF", distance = NULL, ver
     if(is.null(project_name))
         project_name <- "All_projects"
 
-    # if (FE == "TFIDF") {
-    #     #Note: need to recalculate DTM so vocabulary would include
-    #     #both sets.
-
-    #     # combined <- rbind(training_text, testing_text)
-    #     # stopifnot(dim(combined)[1] == train_size + test_size)
-    #     # dtm <- vsm(combined, verbose = F)$dtm
-
-    #     # #Now separate the two dtms:
-    #     # dtm.train <- dtm[1:train_size, ]
-    #     # dtm.test <- dtm[-(1:train_size),]
-
-    #     # stopifnot(dtm.train$nrow == train_size)
-    #     # stopifnot(dtm.test$nrow == test_size)
-    #     dtm <- get_dtm_tfidf(as.matrix(data$text), as.matrix(valid$text))
-
-    # }
-    # else if (FE == "LDA") { #See if passed an LDA Model.
-    #     if (is.null(lda_model)) {
-    #         lda_model <- lda(as.matrix(data$text), as.matrix(valid$text))$lda_model
-    #     }
-
-    #     # dtm.train <- vsm(training_text, verbose = F, weighting = weightTf)$dtmm
-    #     # dtm.train <- posterior(lda_model, dtm.train)$topics
-    #     # #Fitting new data to the lda model
-    #     # dtm.test <- vsm(testing_text, verbose = F, weighting = weightTf)$dtmm
-    #     # dtm.test <- posterior(lda_model, dtm.test)$topics
-    #     dtm <- get_dtm_lda(as.matrix(data$text), as.matrix(valid$text), as.matrix(test$text), lda_model = lda_model)
-    # }
-
-
 
     dataset_size <- dim(dtm$train)[1]
     vocabulary_size <- dim(dtm$train)[2]
@@ -267,8 +236,8 @@ vsm <- function(data, weighting = weightTfIdf, verbose = T) {
 # if K is null, need to send validation data as well.
 lda <- function(data, valid = NULL, k = NULL) {
     cat("Generating LDA Model..\n")
-    data <- vsm(data, weighting = weightTf)
-    valid <- vsm(valid, weighting = weightTf)
+    data <- vsm(data)
+    valid <- vsm(valid)
     if (is.null(k)) {
         k_res <- find_best_k(data$dtm, valid$dtm)
         cat("Best K: ", k_res[1,1], " prodcuced perplexity: ", k_res[1,2], "\n")
@@ -438,13 +407,13 @@ validate <- function(data, test, dtm.train, dtm.test){
 
 get_dtm_lda <- function(training_text, validation_text, testing_text, lda_model) {
 
-    dtm.train <- vsm(training_text, verbose = F, weighting = weightTf)$dtmm
+    dtm.train <- vsm(training_text, verbose = F)$dtmm
     dtm.train <- posterior(lda_model, dtm.train)$topics
     
-    dtm.valid <- vsm(validation_text, verbose = F, weighting = weightTf)$dtmm
+    dtm.valid <- vsm(validation_text, verbose = F)$dtmm
     dtm.valid <- posterior(lda_model, dtm.valid)$topics
     
-    dtm.test <- vsm(testing_text, verbose = F, weighting = weightTf)$dtmm
+    dtm.test <- vsm(testing_text, verbose = F)$dtmm
     dtm.test <- posterior(lda_model, dtm.test)$topics
    
     return(list(train = dtm.train, valid = dtm.valid, test = dtm.test))
