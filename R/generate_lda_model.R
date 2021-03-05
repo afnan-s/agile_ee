@@ -1,3 +1,5 @@
+#How to run from terminal:
+#Rscript generate_lda_model.R "../SPDataset-PorruFilter"
 args <- commandArgs(trailingOnly=TRUE)
 if (length(args) != 1) {
   stop("Exactly one argument must be supplied: path to data directory.", call.=FALSE)

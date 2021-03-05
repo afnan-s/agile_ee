@@ -8,8 +8,10 @@ library(tm)
 library(cluster)
 library(skmeans)
 library(lsa)
+# library(wordcloud2)
+# library(slam)
 ##################################
-extendedstopwords <- c("a", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaa", "aaaaaaaaaa", "about", "above", "across", "after", "again", "against", "all", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "an", "and", "another", "any", "anybody", "anyone", "anything", "anywhere", "are", "area", "areas", "aren't", "around", "as", "ask", "asked", "asking", "asks", "at", "away", "b", "back", "backed", "backing", "backs", "be", "became", "because", "become", "becomes", "been", "before", "began", "behind", "being", "beings", "below", "best", "better", "between", "big", "both", "but", "by", "c", "came", "can", "cannot", "can't", "case", "cases", "certain", "certainly", "clear", "clearly", "come", "could", "couldn't", "d", "did", "didn't", "differ", "different", "differently", "do", "does", "doesn't", "doing", "done", "don't", "down", "downed", "downing", "downs", "during", "e", "each", "early", "either", "end", "ended", "ending", "ends", "enough", "even", "evenly", "ever", "every", "everybody", "everyone", "everything", "everywhere", "f", "face", "faces", "fact", "facts", "far", "felt", "few", "find", "finds", "first", "for", "four", "from", "full", "fully", "further", "furthered", "furthering", "furthers", "g", "gave", "general", "generally", "get", "gets", "give", "given", "gives", "go", "going", "good", "goods", "got", "great", "greater", "greatest", "group", "grouped", "grouping", "groups", "h", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "her", "here", "here's", "hers", "herself", "he's", "high", "higher", "highest", "him", "himself", "his", "how", "however", "how's", "i", "i'd", "if", "i'll", "i'm", "important", "in", "interest", "interested", "interesting", "interests", "into", "is", "isn't", "it", "its", "it's", "itself", "i've", "j", "just", "k", "keep", "keeps", "kind", "knew", "know", "known", "knows", "l", "large", "largely", "last", "later", "latest", "least", "less", "let", "lets", "let's", "like", "likely", "long", "longer", "longest", "m", "made", "make", "making", "man", "many", "may", "me", "member", "members", "men", "might", "more", "most", "mostly", "mr", "mrs", "much", "must", "mustn't", "my", "myself", "n", "necessary", "need", "needed", "needing", "needs", "never", "new", "newer", "newest", "next", "no", "nobody", "non", "noone", "nor", "not", "nothing", "now", "nowhere", "number", "numbers", "o", "of", "off", "often", "old", "older", "oldest", "on", "once", "one", "only", "open", "opened", "opening", "opens", "or", "order", "ordered", "ordering", "orders", "other", "others", "ought", "our", "ours", "ourselves", "out", "over", "own", "p", "part", "parted", "parting", "parts", "per", "perhaps", "place", "places", "point", "pointed", "pointing", "points", "possible", "present", "presented", "presenting", "presents", "problem", "problems", "put", "puts", "q", "quite", "r", "rather", "really", "right", "room", "rooms", "s", "said", "same", "saw", "say", "says", "second", "seconds", "see", "seem", "seemed", "seeming", "seems", "sees", "several", "shall", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "show", "showed", "showing", "shows", "side", "sides", "since", "small", "smaller", "smallest", "so", "some", "somebody", "someone", "something", "somewhere", "state", "states", "still", "such", "sure", "t", "take", "taken", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "therefore", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "thing", "things", "think", "thinks", "this", "those", "though", "thought", "thoughts", "three", "through", "thus", "to", "today", "together", "too", "took", "toward", "turn", "turned", "turning", "turns", "two", "u", "under", "until", "up", "upon", "us", "use", "used", "uses", "v", "very", "w", "want", "wanted", "wanting", "wants", "was", "wasn't", "way", "ways", "we", "we'd", "well", "we'll", "wells", "went", "were", "we're", "weren't", "we've", "what", "what's", "when", "when's", "where", "where's", "whether", "which", "while", "who", "whole", "whom", "who's", "whose", "why", "why's", "will", "with", "within", "without", "won't", "work", "worked", "working", "works", "would", "wouldn't", "x", "y", "year", "years", "yes", "yet", "you", "you'd", "you'll", "young", "younger", "youngest", "your", "you're", "yours", "yourself", "yourselves", "you've", "z")
+extendedstopwords <- c("a", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaa", "aaaaaaaaaa", "about", "above", "across", "after", "again", "against", "all", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "an", "and", "another", "any", "anybody", "anyone", "anything", "anywhere", "are",  "aren't", "around", "as", "ask", "asked", "asking", "asks", "at", "away", "b", "back", "be", "became", "because", "become", "becomes", "been", "before", "began", "behind", "being", "beings", "below", "best", "better", "between", "big", "both", "but", "by", "c", "came", "can", "cannot", "can't", "case", "cases", "certain", "certainly", "clear", "clearly", "come", "could", "couldn't", "d", "did", "didn't", "differ", "different", "differently", "do", "does", "doesn't", "doing", "done", "don't", "down", "downed", "downing", "downs", "during", "e", "each", "early", "either", "end", "ended", "ending", "ends", "enough", "even", "evenly", "ever", "every", "everybody", "everyone", "everything", "everywhere", "f", "face", "faces", "fact", "facts", "far", "felt", "few", "find", "finds", "first", "for", "four", "from", "full", "fully", "further", "furthered", "furthering", "furthers", "g", "gave", "general", "generally", "get", "gets", "give", "given", "gives", "go", "going", "good", "goods", "got", "great", "greater", "greatest", "group", "grouped", "grouping", "groups", "h", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "her", "here", "here's", "hers", "herself", "he's", "high", "higher", "highest", "him", "himself", "his", "how", "however", "how's", "i", "i'd", "if", "i'll", "i'm", "important", "in", "interest", "interested", "interesting", "interests", "into", "is", "isn't", "it", "its", "it's", "itself", "i've", "j", "just", "k", "keep", "keeps", "kind", "knew", "know", "known", "knows", "l", "large", "largely", "last", "later", "latest", "least", "less", "let", "lets", "let's", "like", "likely", "long", "longer", "longest", "m", "made", "make", "making", "man", "many", "may", "me", "member", "members", "men", "might", "more", "most", "mostly", "mr", "mrs", "much", "must", "mustn't", "my", "myself", "n", "necessary", "need", "needed", "needing", "needs", "never", "new", "newer", "newest", "next", "no", "nobody", "non", "noone", "nor", "not", "nothing", "now", "nowhere", "number", "numbers", "o", "of", "off", "often", "old", "older", "oldest", "on", "once", "one", "only", "open", "opened", "opening", "opens", "or", "order", "ordered", "ordering", "orders", "other", "others", "ought", "our", "ours", "ourselves", "out", "over", "own", "p", "part", "parted", "parting", "parts", "per", "perhaps", "place", "places", "point", "pointed", "pointing", "possible", "q", "quite", "r", "rather", "really", "right",  "s", "said", "same", "saw", "say", "says", "see", "seem", "seemed", "seeming", "seems", "sees",  "shall", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't",  "since", "small",  "so", "some", "somebody", "someone", "something", "somewhere", "state", "states", "still", "such", "sure", "t", "take", "taken", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "therefore", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "thing", "things", "think", "thinks", "this", "those", "though", "thought", "thoughts", "three", "through", "thus", "to", "today", "together", "too", "took", "toward",  "two", "u", "under", "until", "up", "upon", "us", "use", "used", "uses", "v", "very","via", "w", "want", "wanted", "wanting", "wants", "was", "wasn't", "way", "ways", "we", "we'd", "well", "we'll",  "went", "were", "we're", "weren't", "we've", "what", "what's", "when", "when's", "where", "where's", "whether", "which", "while", "who", "whole", "whom", "who's", "whose", "why", "why's", "will", "with", "within", "without", "won't", "work", "worked", "working", "works", "would", "wouldn't", "x", "y", "yes", "yet", "you", "you'd", "you'll", "your", "you're", "yours", "yourself", "yourselves", "you've", "z")
 extendedstopwords <- c(extendedstopwords, gsub("'", "", grep("'", extendedstopwords, value = T)))
 #Specify where to save all generated data (intermediate)
 data.prefix <- "../saved_data3/"
@@ -157,7 +159,7 @@ cluster_h <- function(data, test, valid, dtm, FE = "TFIDF", distance = NULL, ver
     save(eval_gran, file = file_name)
     cat("\nGranularity evaluation table is saved to ", file_name, "\n")
     # Plot:
-    file_name <- paste(project_name, "_gran_plot_", FE, ".pdf", sep = "")
+    file_name <- paste(data.prefix, project_name, "_gran_plot_", FE, ".pdf", sep = "")
     pdf(file_name)
     matplot(eval_gran$granularity, 
             cbind(eval_gran$silhouette, eval_gran$MAE, eval_gran$MdAE), 
@@ -193,30 +195,69 @@ cluster_h <- function(data, test, valid, dtm, FE = "TFIDF", distance = NULL, ver
 }
 
 #Function that builds the vector space, using the specified weighting
-vsm <- function(data, weighting = weightTfIdf, verbose = T) {
+vsm <- function(data, weighting = weightTf, verbose = T) {
     data <- apply(data, 1, purify)
+
+    #TODO: Preprocessing for code
+
     dtm.control <- list(
         tolower = T,
         removePunctuation = T,
-        removeNumbers = F,
+        removeNumbers = T,
         stopwords = c(stopwords("english"), extendedstopwords),
-        stemming = F,
-        wordLengths = c(2, Inf),
+        stemming = T,
+        wordLengths = c(3, Inf),
         weighting = weighting
     )
     corp <- Corpus(VectorSource(as.vector(data)))
     dtm <- DocumentTermMatrix(corp, control = dtm.control)
 
-    dtmm <- as.matrix(dtm)
+
+
+    #removeSparseTerms(dtm, 0.95)
+
+    # freq = data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+    # wordcloud(rownames(freq), freq[,1], max.words=100, colors=brewer.pal(1, "Dark2"))
+
+    
     if (verbose)
     cat("Corpus Dimensions, before cleaning: ", dim(dtm), "\n")
     # exclude terms that occur less than 2 times
-    idx <- colSums(dtmm) > 1
-    dtm <- dtm[, idx]
+    # idx <- colSums(dtmm) > 1
+    # dtm <- dtm[, idx]
 
-    # throw out any empty documents
-    idx <- rowSums(dtmm) > 0
-    dtm <- dtm[idx, ]
+    # # throw out any empty documents
+    # idx <- rowSums(dtmm) > 0
+    # dtm <- dtm[idx, ]
+    
+    #Select Vocabulary based on TFIDF. 
+    #Source: https://cran.r-project.org/web/packages/topicmodels/vignettes/topicmodels.pdf
+
+    # ##To Save WordCloud 
+    # library(webshot)
+    # library(htmlwidgets)
+    # freq <- data.frame(sort(colSums(as.matrix(dtm)), decreasing=TRUE))
+    # input <- data.frame(rownames(freq), freq[,1])
+    # hw <- wordcloud2(data=input, size=1.5, color='random-dark')
+    # saveWidget(hw,"1.html",selfcontained = F)
+    # webshot::webshot("1.html","1.png",vwidth = 1992, vheight = 1744, delay =3)
+
+    term_tfidf <- tapply(dtm$v/row_sums(dtm)[dtm$i], dtm$j, mean) * log2(nDocs(dtm)/col_sums(dtm > 0))
+    if(verbose){
+        cat("TfIdf statistics:\n")
+        print(summary(term_tfidf))
+        cat("\n")
+    }
+    
+    dtm <- dtm[,term_tfidf >= 0.15]
+    dtm <- dtm[row_sums(dtm) > 0,]
+    # removeSparseTerms(dtm, 0.95)
+
+    dtmm <- as.matrix(dtm)
+
+
+
+
     if (verbose)
     cat("Corpus Dimensions, after cleaning: ", dim(dtm), "\n")
 
@@ -224,7 +265,6 @@ vsm <- function(data, weighting = weightTfIdf, verbose = T) {
     stopifnot(!any(termFreqs == 0))
     docLens <- rowSums(dtmm)
     stopifnot(!any(docLens == 0))
-
     return(list(data = data, dtm = dtm, dtmm = dtmm,
                 term_freq = termFreqs, doc_lengths = docLens))
 
@@ -299,20 +339,19 @@ lda <- function(data, valid = NULL, k = NULL) {
 
 find_best_k <- function(training, test) {
     start.time <- Sys.time()
-    #ks <- seq(2, 3000, by = 500)
-    ks <- seq(2, 3000, by = 500) #####TUNE#####
+    ks <- seq(2, 3000, by = 250) #####TUNE#####
     models <- lapply(ks, function(k) LDA(training, k, method = "Gibbs",
                         control = list(alpha = 1/k, delta = 0.1,
-                        burnin = 50, iter = 100, keep = 50, #####TUNE#####
+                        burnin = 50, iter = 300, keep = 50, #####TUNE#####
                         verbose = 10)))
     end.time <- Sys.time()
     time.taken <- end.time - start.time
     cat("Time taken to generate LDA models: ", time.taken, "\n")
-    file_name <- paste(data.prefix, "LDA_models.rda", sep = "")
-    save(models, file = file_name)
-    cat("Generated LDA models saved to ", file_name, "\n")
+    # file_name <- paste(data.prefix, "LDA_models.rda", sep = "")
+    # save(models, file = file_name)
+    # cat("Generated LDA models saved to ", file_name, "\n")
     perps <- sapply(models, perplexity, test)
-    pdf("perplexity_graph.pdf")
+    pdf(paste(data.prefix,"perplexity_graph.pdf", sep=""))
     plot(ks, perps, xlab = "Number of topics", ylab = "Perplexity")
     dev.off()
 
