@@ -3,18 +3,20 @@ library(stringr)
 library(RTextTools)
 library(topicmodels)
 library(SnowballC)
-library(stringr)
+# library(stringr)
 library(tm)
 library(cluster)
 library(skmeans)
 library(lsa)
 # library(wordcloud2)
-# library(slam)
+library(slam)
 ##################################
 extendedstopwords <- c("a", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaa", "aaaaaaaaaa", "about", "above", "across", "after", "again", "against", "all", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "an", "and", "another", "any", "anybody", "anyone", "anything", "anywhere", "are",  "aren't", "around", "as", "ask", "asked", "asking", "asks", "at", "away", "b", "back", "be", "became", "because", "become", "becomes", "been", "before", "began", "behind", "being", "beings", "below", "best", "better", "between", "big", "both", "but", "by", "c", "came", "can", "cannot", "can't", "case", "cases", "certain", "certainly", "clear", "clearly", "come", "could", "couldn't", "d", "did", "didn't", "differ", "different", "differently", "do", "does", "doesn't", "doing", "done", "don't", "down", "downed", "downing", "downs", "during", "e", "each", "early", "either", "end", "ended", "ending", "ends", "enough", "even", "evenly", "ever", "every", "everybody", "everyone", "everything", "everywhere", "f", "face", "faces", "fact", "facts", "far", "felt", "few", "find", "finds", "first", "for", "four", "from", "full", "fully", "further", "furthered", "furthering", "furthers", "g", "gave", "general", "generally", "get", "gets", "give", "given", "gives", "go", "going", "good", "goods", "got", "great", "greater", "greatest", "group", "grouped", "grouping", "groups", "h", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "her", "here", "here's", "hers", "herself", "he's", "high", "higher", "highest", "him", "himself", "his", "how", "however", "how's", "i", "i'd", "if", "i'll", "i'm", "important", "in", "interest", "interested", "interesting", "interests", "into", "is", "isn't", "it", "its", "it's", "itself", "i've", "j", "just", "k", "keep", "keeps", "kind", "knew", "know", "known", "knows", "l", "large", "largely", "last", "later", "latest", "least", "less", "let", "lets", "let's", "like", "likely", "long", "longer", "longest", "m", "made", "make", "making", "man", "many", "may", "me", "member", "members", "men", "might", "more", "most", "mostly", "mr", "mrs", "much", "must", "mustn't", "my", "myself", "n", "necessary", "need", "needed", "needing", "needs", "never", "new", "newer", "newest", "next", "no", "nobody", "non", "noone", "nor", "not", "nothing", "now", "nowhere", "number", "numbers", "o", "of", "off", "often", "old", "older", "oldest", "on", "once", "one", "only", "open", "opened", "opening", "opens", "or", "order", "ordered", "ordering", "orders", "other", "others", "ought", "our", "ours", "ourselves", "out", "over", "own", "p", "part", "parted", "parting", "parts", "per", "perhaps", "place", "places", "point", "pointed", "pointing", "possible", "q", "quite", "r", "rather", "really", "right",  "s", "said", "same", "saw", "say", "says", "see", "seem", "seemed", "seeming", "seems", "sees",  "shall", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't",  "since", "small",  "so", "some", "somebody", "someone", "something", "somewhere", "state", "states", "still", "such", "sure", "t", "take", "taken", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "therefore", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "thing", "things", "think", "thinks", "this", "those", "though", "thought", "thoughts", "three", "through", "thus", "to", "today", "together", "too", "took", "toward",  "two", "u", "under", "until", "up", "upon", "us", "use", "used", "uses", "v", "very","via", "w", "want", "wanted", "wanting", "wants", "was", "wasn't", "way", "ways", "we", "we'd", "well", "we'll",  "went", "were", "we're", "weren't", "we've", "what", "what's", "when", "when's", "where", "where's", "whether", "which", "while", "who", "whole", "whom", "who's", "whose", "why", "why's", "will", "with", "within", "without", "won't", "work", "worked", "working", "works", "would", "wouldn't", "x", "y", "yes", "yet", "you", "you'd", "you'll", "your", "you're", "yours", "yourself", "yourselves", "you've", "z")
 extendedstopwords <- c(extendedstopwords, gsub("'", "", grep("'", extendedstopwords, value = T)))
 #Specify where to save all generated data (intermediate)
-data.prefix <- "../saved_data3/"
+data.prefix <- "../results/"
+if(!dir.exists(data.prefix))
+    dir.create(data.prefix, showWarnings = TRUE, recursive = FALSE, mode = "0777")
 
 # Get all data in the passed folder
 # All data returned as DF
@@ -43,8 +45,28 @@ get_data <- function(path, type, project = NULL) {
         # otherwise, skip. 
         if ( ! is.null(project) && project_name != project) next
 
-        temp <- read.csv(file, header = TRUE, stringsAsFactors = FALSE)
+        temp <- read.csv(paste(path, file, sep = "/"), header = TRUE, stringsAsFactors = FALSE)[c('issuekey','title', 'description_text', 'storypoint', 'pt', 'et', 'rt')]
+        temp$text <- paste(temp$title, temp$description_text, sep = ' ')
+        temp$length <- nchar(temp$text)
         temp <- cbind(temp, project = project_name)
+        temp <- subset(temp, select = -c(title, description_text))
+        colnames(temp) <- c('issuekey', 'storypoint', 'in.progress.time', 'effort.time', 'resolution.time', 'text', 'length', 'project')
+        
+        temp$in.progress.time <- temp$in.progress.time/1440.0
+        temp$effort.time <- temp$effort.time/1440.0
+        temp$resolution.time <- temp$resolution.time/1440.0
+        
+        if(file.exists(paste0(path, project_name, '-', data_type,'_features.csv'))){
+            extra.features <- read.csv(paste0(path, project_name, '-', data_type,'_features.csv'), header = TRUE, stringsAsFactors = FALSE)
+            temp <- cbind(temp, extra.features[,-c(1)])
+        }
+        
+        if(file.exists(paste0(path, project_name, '-', data_type,'_MIW.csv'))){
+            MIW.features <- read.csv(paste0(path, project_name, '-', data_type,'_MIW.csv'), header = TRUE, stringsAsFactors = FALSE)
+            temp <- cbind(temp, MIW.features[,-c(1)])
+        }
+        
+        
         if (!exists("dataset")) {
             dataset <- temp
         }
@@ -98,6 +120,7 @@ cluster_h <- function(data, test, valid, dtm, FE = "TFIDF", distance = NULL, ver
     vocabulary_size <- dim(dtm$train)[2]
     
     if (verbose) {
+        cat("Evaluation Based-on: ", ev, "\n")
         cat("Corpus Dimensions: ", dim(dtm$train), "\n")
     }
     #If distance matrix was not passed, calculate distance (using cosine)
@@ -196,17 +219,21 @@ cluster_h <- function(data, test, valid, dtm, FE = "TFIDF", distance = NULL, ver
 
 #Function that builds the vector space, using the specified weighting
 vsm <- function(data, weighting = weightTf, verbose = T) {
-    data <- apply(data, 1, purify)
 
     #TODO: Preprocessing for code
+    # Removing URLs
+    data <- lapply(data, remove.urls)
+    # Removing non alphabetic and numeric chars
+    data <- lapply(data, purify)
 
     dtm.control <- list(
         tolower = T,
         removePunctuation = T,
-        removeNumbers = T,
+        removeNumbers = F,
+        # No stopowrds removal
         stopwords = c(stopwords("english"), extendedstopwords),
-        stemming = T,
-        wordLengths = c(3, Inf),
+        stemming = F,
+        wordLengths = c(2, Inf),
         weighting = weighting
     )
     corp <- Corpus(VectorSource(as.vector(data)))
@@ -242,21 +269,18 @@ vsm <- function(data, weighting = weightTf, verbose = T) {
     # saveWidget(hw,"1.html",selfcontained = F)
     # webshot::webshot("1.html","1.png",vwidth = 1992, vheight = 1744, delay =3)
 
-    term_tfidf <- tapply(dtm$v/row_sums(dtm)[dtm$i], dtm$j, mean) * log2(nDocs(dtm)/col_sums(dtm > 0))
-    if(verbose){
-        cat("TfIdf statistics:\n")
-        print(summary(term_tfidf))
-        cat("\n")
-    }
+    # term_tfidf <- tapply(dtm$v/row_sums(dtm)[dtm$i], dtm$j, mean) * log2(nDocs(dtm)/col_sums(dtm > 0))
+    # if(verbose){
+    #     cat("TfIdf statistics:\n")
+    #     print(summary(term_tfidf))
+    #     cat("\n")
+    # }
     
-    dtm <- dtm[,term_tfidf >= 0.15]
+    dtm <- dtm[,col_sums(dtm) > 0]
     dtm <- dtm[row_sums(dtm) > 0,]
     # removeSparseTerms(dtm, 0.95)
 
     dtmm <- as.matrix(dtm)
-
-
-
 
     if (verbose)
     cat("Corpus Dimensions, after cleaning: ", dim(dtm), "\n")
@@ -339,7 +363,7 @@ lda <- function(data, valid = NULL, k = NULL) {
 
 find_best_k <- function(training, test) {
     start.time <- Sys.time()
-    ks <- seq(2, 3000, by = 250) #####TUNE#####
+    ks <- seq(15, 2000, by = 250) #####TUNE#####
     models <- lapply(ks, function(k) LDA(training, k, method = "Gibbs",
                         control = list(alpha = 1/k, delta = 0.1,
                         burnin = 50, iter = 300, keep = 50, #####TUNE#####
@@ -366,6 +390,9 @@ find_best_k <- function(training, test) {
 
 #Function used internally to replace all non-alphanumeric characters.
 purify <- function(x) str_replace_all(x, "[^[:alnum:]]", " ")
+
+#Function to replace all urls with sapce.
+remove.urls <- function(x) str_replace_all(x, "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+#]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", " ")
 
 #Define a class to hold clustering solutions:
 setClass(Class = "Solution",
@@ -458,21 +485,39 @@ get_dtm_lda <- function(training_text, validation_text, testing_text, lda_model)
     return(list(train = dtm.train, valid = dtm.valid, test = dtm.test))
 }
 
-get_dtm_tfidf <- function(training_text, testing_text) {
-
+get_dtm_tfidf <- function(training_text, testing_text, valid_text =NULL) {
+    
     #Note: need to recalculate DTM so vocabulary would include
     #both sets.
-
-    combined <- rbind(training_text, testing_text)
-    stopifnot(dim(combined)[1] == train_size + test_size)
-    dtm <- vsm(combined, verbose = F)$dtm
-
-    #Now separate the two dtms:
-    dtm.train <- dtm[1:train_size, ]
-    dtm.test <- dtm[-(1:train_size),]
-
-    stopifnot(dtm.train$nrow == train_size)
-    stopifnot(dtm.test$nrow == test_size)
     
-    return(list(train = dtm.train, test = dtm.test))
+    train_size <- dim(training_text)[1]
+    test_size <- dim(testing_text)[1]
+    if(!is.null(valid_text))
+        valid_size <- dim(valid_text)[1]
+    else
+        valid_size <- 0
+    
+    if(!is.null(valid_text))
+        combined <- rbind(training_text, valid_text, testing_text)
+    else
+        combined <- rbind(training_text, testing_text)
+    
+    stopifnot(dim(combined)[1] == train_size + test_size  + valid_size)
+    dtm_t <- vsm(combined, verbose = F)$dtmm
+    
+    #Now separate the two dtms:
+    dtm_t.train <- dtm_t[1:train_size, ]
+    dtm_t.test <- dtm_t[-(1:(train_size+valid_size)), ]
+    dtm_t.valid <- dtm_t[(train_size+1):(train_size+valid_size), ]
+    
+    stopifnot(dim(dtm_t.train)[1] == train_size)
+    stopifnot(dim(dtm_t.valid)[1] == valid_size)
+    stopifnot(dim(dtm_t.test)[1] == test_size)
+    
+    return(list(train = dtm_t.train, test = dtm_t.test, valid = dtm_t.valid))
+}
+
+term.presens <- function(text, term.vector){
+    text <- str_to_lower(text)
+    return(as.integer(as.logical(sapply(term.vector, function(term) str_count(text, pattern = term) > 0))))
 }
